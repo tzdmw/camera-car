@@ -20,10 +20,14 @@ std::vector<MOTOR_PINS> motorPins =
         };
 #define LIGHT_PIN 4
 
-#define UP 1
-#define DOWN 2
-#define LEFT 3
-#define RIGHT 4
+#define RIGHT_UP 1
+#define UP 2
+#define LIFT_UP 3
+#define LIFT 4
+#define LIFT_DOWN 5
+#define DOWN 6
+#define RIGHT_DOWN 7
+#define RIGHT 8
 #define STOP 0
 
 #define RIGHT_MOTOR 0
@@ -83,7 +87,7 @@ const char* htmlHomePage PROGMEM = R"HTMLHOMEPAGE(
         background: rgba(0, 0, 0, 0.15);
         border-radius: 100%;
         position: relative;
-        margin: 100px auto;
+        margin: 50px auto;
       }
       #joystick{
         position: absolute;
@@ -158,14 +162,6 @@ const char* htmlHomePage PROGMEM = R"HTMLHOMEPAGE(
       <div id="joystick"></div>
       </div>
       <tr>
-        <td style="text-align:left"><b>Speed:</b></td>
-        <td colspan=2>
-         <div class="slidecontainer">
-            <input type="range" min="0" max="255" value="150" class="slider" id="Speed" oninput='sendButtonInput("Speed",value)'>
-          </div>
-        </td>
-      </tr>
-      <tr>
         <td style="text-align:left"><b>Light:</b></td>
         <td colspan=2>
           <div class="slidecontainer">
@@ -199,35 +195,34 @@ const char* htmlHomePage PROGMEM = R"HTMLHOMEPAGE(
         var speed = 0;
         if (distance > 10) {
           if (angle >= 22.5 && angle < 67.5) {
-            direction = 'rightup';
+            direction = 'RIGHT_UP';
             speed = (distance - 10) / 90;//右上
           }else if (angle >= 67.5 && angle < 112.5) {
-            direction = 'up';
+            direction = 'UP';
             speed = (distance - 10) / 90;//前
           } else if (angle >= 112.5 && angle < 157.5) {
-            direction = 'leftup';
+            direction = 'LEFT_UP';
             speed = (distance - 10) / 90;//左上
           } else if (angle >= 157.5 && angle < 202.5) {
-            direction = 'left';
+            direction = 'LEFT';
             speed = (distance - 10) / 90;//左
           } else if (angle >= 202.5 && angle < 247.5) {
-            direction = 'leftdown';
+            direction = 'LEFT_DOWN';
             speed = (distance - 10) / 90;//左下
           } else if (angle >= 247.5 && angle < 292.5) {
-            direction = 'down';
+            direction = 'DOWN';
             speed = (distance - 10) / 90;//下
           } else if (angle >= 292.5 && angle < 337.5) {
-            direction = 'rightdown';
+            direction = 'RIGHT_DOWN';
             speed = (distance - 10) / 90;//右下
           } else if (angle >= 337.5 || angle < 22.5) {
-            direction = 'right';
+            direction = 'RIGHT';
             speed = (distance - 10) / 90;//右
           }
           console.log(direction);
           console.log(speed);
         }
-        sendButtonInput("dir",direction)
-        sendButtonInput("spd",speed)
+        sendjoystickInput("MoveCar",direction,speed);
       });
 
       manager.on('end', function () {
@@ -251,8 +246,6 @@ const char* htmlHomePage PROGMEM = R"HTMLHOMEPAGE(
         websocketCarInput = new WebSocket(webSocketCarInputUrl);
         websocketCarInput.onopen    = function(event)
         {
-          var speedButton = document.getElementById("Speed");
-          sendButtonInput("Speed", speedButton.value);
           var lightButton = document.getElementById("Light");
           sendButtonInput("Light", lightButton.value);
         };
@@ -271,6 +264,11 @@ const char* htmlHomePage PROGMEM = R"HTMLHOMEPAGE(
         var data = key + "," + value;
         websocketCarInput.send(data);
       }
+      function sendjoystickInput(key, direction,speed)
+      {
+        var data = key + "," + direction+ "," +speed ;
+        websocketCarInput.send(data);
+      }
 
       window.onload = initWebSocket;
       document.getElementById("mainTable").addEventListener("touchend", function(event){
@@ -282,7 +280,7 @@ const char* htmlHomePage PROGMEM = R"HTMLHOMEPAGE(
 )HTMLHOMEPAGE";
 
 
-void rotateMotor(int motorNumber, int motorDirection)
+void rotateMotor(int motorNumber, int motorDirection,int speedInt)//TODO:speedInt没有写
 {
     if (motorDirection == FORWARD)
     {
@@ -301,42 +299,72 @@ void rotateMotor(int motorNumber, int motorDirection)
     }
 }
 
-void moveCar(int inputValue)
+void moveCar(int directionInt,int speedInt)
 {
-    Serial.printf("Got value as %d\n", inputValue);
-    switch(inputValue)
+    Serial.printf("Got directionInt as %d speedInt as %d\n", directionInt,speedInt);
+    switch(directionInt)
     {
 
+        case RIGHT_UP:
+            rotateMotor(RIGHT_MOTOR, 0,speedInt);
+            rotateMotor(LEFT_MOTOR, FORWARD,speedInt);
+            break;
+
         case UP:
-            rotateMotor(RIGHT_MOTOR, FORWARD);
-            rotateMotor(LEFT_MOTOR, FORWARD);
+            rotateMotor(RIGHT_MOTOR, FORWARD,speedInt);
+            rotateMotor(LEFT_MOTOR, FORWARD,speedInt);
+            break;
+
+        case LIFT_UP:
+            rotateMotor(RIGHT_MOTOR, FORWARD,speedInt);
+            rotateMotor(LEFT_MOTOR, 0,speedInt);
+            break;
+
+        case LIFT:
+            rotateMotor(RIGHT_MOTOR, FORWARD,speedInt);
+            rotateMotor(LEFT_MOTOR, BACKWARD,speedInt);
+            break;
+
+        case LIFT_DOWN:
+            rotateMotor(RIGHT_MOTOR, BACKWARD,speedInt);
+            rotateMotor(LEFT_MOTOR, 0,speedInt);
             break;
 
         case DOWN:
-            rotateMotor(RIGHT_MOTOR, BACKWARD);
-            rotateMotor(LEFT_MOTOR, BACKWARD);
+            rotateMotor(RIGHT_MOTOR, BACKWARD,speedInt);
+            rotateMotor(LEFT_MOTOR, BACKWARD,speedInt);
             break;
 
-        case LEFT:
-            rotateMotor(RIGHT_MOTOR, FORWARD);
-            rotateMotor(LEFT_MOTOR, BACKWARD);
+
+        case RIGHT_DOWN:
+            rotateMotor(RIGHT_MOTOR, 0,speedInt);
+            rotateMotor(LEFT_MOTOR, BACKWARD,speedInt);
             break;
 
         case RIGHT:
-            rotateMotor(RIGHT_MOTOR, BACKWARD);
-            rotateMotor(LEFT_MOTOR, FORWARD);
+            rotateMotor(RIGHT_MOTOR, BACKWARD,speedInt);
+            rotateMotor(LEFT_MOTOR, FORWARD,speedInt);
             break;
 
         case STOP:
-            rotateMotor(RIGHT_MOTOR, STOP);
-            rotateMotor(LEFT_MOTOR, STOP);
+            rotateMotor(RIGHT_MOTOR, STOP,0);
+            rotateMotor(LEFT_MOTOR, STOP,0);
             break;
 
         default:
-            rotateMotor(RIGHT_MOTOR, STOP);
-            rotateMotor(LEFT_MOTOR, STOP);
+            rotateMotor(RIGHT_MOTOR, STOP,0);
+            rotateMotor(LEFT_MOTOR, STOP,0);
             break;
     }
+}
+int countCommas(const std::string& str) {
+    int commaCount = 0;
+    for (char c : str) {
+        if (c == ',') {
+            commaCount++;
+        }
+    }
+    return commaCount;
 }
 
 void handleRoot(AsyncWebServerRequest *request)
@@ -363,7 +391,7 @@ void onCarInputWebSocketEvent(AsyncWebSocket *server,
             break;
         case WS_EVT_DISCONNECT:
             Serial.printf("WebSocket client #%u disconnected\n", client->id());
-            moveCar(0);
+            moveCar(STOP,0);
             ledcWrite(PWMLightChannel, 0);
             break;
         case WS_EVT_DATA:
@@ -374,18 +402,26 @@ void onCarInputWebSocketEvent(AsyncWebSocket *server,
                 std::string myData = "";
                 myData.assign((char *)data, len);
                 std::istringstream ss(myData);
-                std::string key, value;
-                std::getline(ss, key, ',');
-                std::getline(ss, value, ',');
-                Serial.printf("Key [%s] Value[%s]\n", key.c_str(), value.c_str());
+                std::string key, direction,speed,value;
+                if(countCommas(myData)==2)
+                {
+                    std::getline(ss, key, ',');
+                    std::getline(ss, direction, ',');
+                    std::getline(ss, speed, ',');
+                    Serial.printf("Key [%s] direction[%s] speed[%s]\n", key.c_str(), direction.c_str(),speed.c_str());
+                }
+               else
+                {
+                    std::getline(ss, key, ',');
+                    std::getline(ss, value, ',');
+                    Serial.printf("Key [%s] valueInt[%s] \n", key.c_str(), value.c_str());
+                }
+                int directionInt = atoi(direction.c_str());
+                int speedInt = atoi(speed.c_str());
                 int valueInt = atoi(value.c_str());
                 if (key == "MoveCar")
                 {
-                    moveCar(valueInt);
-                }
-                else if (key == "Speed")
-                {
-                    ledcWrite(PWMSpeedChannel, valueInt);
+                    moveCar(directionInt,speedInt);
                 }
                 else if (key == "Light")
                 {
@@ -520,7 +556,7 @@ void setUpPinModes()
         /* Attach the PWM Channel to the motor enb Pin */
         ledcAttachPin(motorPins[i].pinEn, PWMSpeedChannel);
     }
-    moveCar(STOP);
+    moveCar(STOP,0);
 
     pinMode(LIGHT_PIN, OUTPUT);
     ledcAttachPin(LIGHT_PIN, PWMLightChannel);
