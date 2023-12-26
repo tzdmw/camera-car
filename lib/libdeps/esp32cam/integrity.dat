@@ -1,0 +1,4 @@
+AsyncTCP_SSL
+esp32-camera
+esphome/AsyncTCP-esphome @ ^2.0.1
+ESP Async WebServer
